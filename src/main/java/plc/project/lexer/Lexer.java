@@ -2,6 +2,7 @@ package plc.project.lexer;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.google.common.base.Preconditions;
 
 /**
  * The lexer works through a combination of {@link #lex()}, which repeatedly
@@ -24,47 +25,95 @@ public final class Lexer {
     public List<Token> lex() throws LexException {
         var tokens = new ArrayList<Token>();
         while (chars.has(0)) {
-            //TODO: Skip whitespace/comments
-            tokens.add(lexToken());
+            if (chars.peek("[ \b\n\r\t]"))
+                lexWhitespace();
+            else if (chars.peek("/", "/"))
+                lexComment();
+            else
+                tokens.add(lexToken());
         }
         return tokens;
     }
 
     private void lexWhitespace() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+        Preconditions.checkState(chars.match("[ \b\n\r\t]"));
+        while(chars.match("[ \b\n\r\t]"));
+        chars.emit();
     }
 
     private void lexComment() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+        Preconditions.checkState(chars.match("/", "/"));
+        while (chars.match("[^\n\r]"));
+        chars.emit();
     }
 
-    private Token lexToken() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+    private Token lexToken() throws LexException {
+        if (chars.peek("[A-Za-z_]"))
+            return lexIdentifier();
+        else if (chars.peek("[0-9]") || chars.peek("[+-]", "[0-9]"))
+            return lexNumber();
+        else if (chars.peek("'"))
+            return lexCharacter();
+        else if (chars.peek("\""))
+            return lexString();
+        else
+            return lexOperator();
     }
 
     private Token lexIdentifier() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+        Preconditions.checkState(chars.match("[A-Za-z_]"));
+        while (chars.match("[A-Za-z0-9_-]"));
+        return new Token(Token.Type.IDENTIFIER, chars.emit());
     }
 
     private Token lexNumber() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+        Token.Type type = Token.Type.INTEGER;
+        chars.match("[+-]");
+        Preconditions.checkState(chars.match("[0-9]"));
+        while (chars.match("[0-9]"));
+        if (chars.match("\\.", "[0-9]")) {
+            type = Token.Type.DECIMAL;
+            while (chars.match("[0-9]"));
+        }
+        if (chars.match("e", "[0-9]") || chars.match("e", "[+-]", "[0-9]")) {
+            while (chars.match("[0-9]"));
+        }
+        return new Token(type, chars.emit());
     }
 
-    private Token lexCharacter() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+    private Token lexCharacter() throws LexException {
+        Preconditions.checkState(chars.match("'"));
+        if (chars.peek("\\\\"))
+            lexEscape();
+        else if (!chars.match("[^'\n\r]"))
+            throw new LexException("Invalid character literal", chars.index);
+        if (!chars.match("'"))
+            throw new LexException("Invalid character literal", chars.index);
+        return new Token(Token.Type.CHARACTER, chars.emit());
     }
 
-    private Token lexString() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+    private Token lexString() throws LexException {
+        Preconditions.checkState(chars.match("\""));
+        while (!chars.match("\"")) {
+            if (chars.peek("\\\\"))
+                lexEscape();
+            else if (!chars.match("[^\n\r]"))
+                throw new LexException("Invalid string literal", chars.index);
+        }
+        return new Token(Token.Type.STRING, chars.emit());
     }
 
     // Consider: why does this method return void?
-    private void lexEscape() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+    private void lexEscape() throws LexException {
+        Preconditions.checkState(chars.match("\\\\"));
+        if (!chars.match("[bnrt'\"\\\\]"))
+            throw new LexException("Invalid escape", chars.index);
     }
 
     public Token lexOperator() {
-        throw new UnsupportedOperationException("TODO"); //TODO
+        Preconditions.checkState(chars.match("[<>!=]", "=")
+            || chars.match("[^A-Za-z_0-9'\" \b\n\r\t]"));
+        return new Token(Token.Type.OPERATOR, chars.emit());
     }
 
     /**

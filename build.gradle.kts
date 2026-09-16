@@ -1,5 +1,5 @@
 plugins {
-    id("java")
+    application
 }
 
 group = "plc.project"
@@ -22,4 +22,12 @@ java {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+application {
+    mainClass = "plc.project.Main"
+}
+
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
 }
