@@ -23,6 +23,9 @@ final class ParserTests {
 
     private static Stream<Arguments> testSource() {
         return Stream.of(
+            Arguments.of("Empty Statement", ";",
+                new ParseException("", Optional.of(new Token(Token.Type.OPERATOR, ";")))
+            ),
             Arguments.of("Single",
                 List.of(
                     new Token(Token.Type.IDENTIFIER, "stmt"),
@@ -58,31 +61,25 @@ final class ParserTests {
 
     private static Stream<Arguments> testLetStmt() {
         return Stream.of(
-            Arguments.of("Declaration",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "LET"),
-                    new Token(Token.Type.IDENTIFIER, "name"),
-                    new Token(Token.Type.OPERATOR, ";")
-                ),
+            Arguments.of("Declaration", "LET name;",
                 new Ast.Stmt.Let("name", Optional.empty())
             ),
-            Arguments.of("Initialization",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "LET"),
-                    new Token(Token.Type.IDENTIFIER, "name"),
-                    new Token(Token.Type.OPERATOR, "="),
-                    new Token(Token.Type.IDENTIFIER, "expr"),
-                    new Token(Token.Type.OPERATOR, ";")
-                ),
+            Arguments.of("Initialization", "LET name = expr;",
                 new Ast.Stmt.Let("name", Optional.of(new Ast.Expr.Variable("expr")))
             ),
-            Arguments.of("Missing Semicolon",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "LET"),
-                    new Token(Token.Type.IDENTIFIER, "name"),
-                    new Token(Token.Type.OPERATOR, "="),
-                    new Token(Token.Type.IDENTIFIER, "expr")
-                ),
+            Arguments.of("Confusing Declaration", "LET LET;",
+                new Ast.Stmt.Let("LET", Optional.empty())
+            ),
+            Arguments.of("Confusing Initialization", "LET LET = expr;",
+                new Ast.Stmt.Let("LET", Optional.of(new Ast.Expr.Variable("expr")))
+            ),
+            Arguments.of("Missing Variable", "LET;",
+                new ParseException("", Optional.of(new Token(Token.Type.OPERATOR, ";")))
+            ),
+            Arguments.of("Missing Value", "LET name = ;",
+                new ParseException("", Optional.of(new Token(Token.Type.OPERATOR, ";")))
+            ),
+            Arguments.of("Missing Semicolon", "LET name = expr",
                 new ParseException("", Optional.empty())
             )
         );
@@ -145,18 +142,7 @@ final class ParserTests {
                     List.of()
                 )
             ),
-            Arguments.of("Else",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "IF"),
-                    new Token(Token.Type.IDENTIFIER, "cond"),
-                    new Token(Token.Type.IDENTIFIER, "DO"),
-                    new Token(Token.Type.IDENTIFIER, "then"),
-                    new Token(Token.Type.OPERATOR, ";"),
-                    new Token(Token.Type.IDENTIFIER, "ELSE"),
-                    new Token(Token.Type.IDENTIFIER, "else"),
-                    new Token(Token.Type.OPERATOR, ";"),
-                    new Token(Token.Type.IDENTIFIER, "END")
-                ),
+            Arguments.of("Else", "IF cond DO then; ELSE else; END",
                 new Ast.Stmt.If(
                     new Ast.Expr.Variable("cond"),
                     List.of(new Ast.Stmt.Expression(new Ast.Expr.Variable("then"))),
@@ -214,24 +200,23 @@ final class ParserTests {
 
     private static Stream<Arguments> testReturnStmt() {
         return Stream.of(
-            Arguments.of("Return Expr",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "RETURN"),
-                    new Token(Token.Type.IDENTIFIER, "expr"),
-                    new Token(Token.Type.OPERATOR, ";")
-                ),
+            Arguments.of("Return", "RETURN;",
+                new Ast.Stmt.Return(Optional.empty())
+            ),
+            Arguments.of("Return Expr", "RETURN expr;",
                 new Ast.Stmt.Return(Optional.of(new Ast.Expr.Variable("expr")))
             ),
-            Arguments.of("Return If",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "RETURN"),
-                    new Token(Token.Type.IDENTIFIER, "IF"),
-                    new Token(Token.Type.IDENTIFIER, "cond"),
-                    new Token(Token.Type.OPERATOR, ";")
-                ),
+            Arguments.of("Return If", "RETURN IF cond;",
                 new Ast.Stmt.If(
                     new Ast.Expr.Variable("cond"),
                     List.of(new Ast.Stmt.Return(Optional.empty())),
+                    List.of()
+                )
+            ),
+            Arguments.of("Return Expr If", "RETURN expr IF cond;",
+                new Ast.Stmt.If(
+                    new Ast.Expr.Variable("cond"),
+                    List.of(new Ast.Stmt.Return(Optional.of(new Ast.Expr.Variable("expr")))),
                     List.of()
                 )
             )
@@ -246,20 +231,13 @@ final class ParserTests {
 
     private static Stream<Arguments> testExpressionStmt() {
         return Stream.of(
-            Arguments.of("Variable",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "variable"),
-                    new Token(Token.Type.OPERATOR, ";")
-                ),
+            Arguments.of("Variable", "variable;",
                 new Ast.Stmt.Expression(new Ast.Expr.Variable("variable"))
             ),
-            Arguments.of("Function",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "function"),
-                    new Token(Token.Type.OPERATOR, "("),
-                    new Token(Token.Type.OPERATOR, ")"),
-                    new Token(Token.Type.OPERATOR, ";")
-                ),
+            Arguments.of("Else", "ELSE;",
+                new Ast.Stmt.Expression(new Ast.Expr.Variable("ELSE"))
+            ),
+            Arguments.of("Function", "function();",
                 new Ast.Stmt.Expression(new Ast.Expr.Function("function", List.of()))
             )
         );
@@ -273,26 +251,25 @@ final class ParserTests {
 
     private static Stream<Arguments> testAssignmentStmt() {
         return Stream.of(
-            Arguments.of("Variable",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "variable"),
-                    new Token(Token.Type.OPERATOR, "="),
-                    new Token(Token.Type.IDENTIFIER, "value"),
-                    new Token(Token.Type.OPERATOR, ";")
-                ),
+            Arguments.of("Variable", "variable = value;",
                 new Ast.Stmt.Assignment(
                     new Ast.Expr.Variable("variable"),
                     new Ast.Expr.Variable("value")
                 )
             ),
-            Arguments.of("Missing Value",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "object"),
-                    new Token(Token.Type.OPERATOR, "."),
-                    new Token(Token.Type.IDENTIFIER, "property"),
-                    new Token(Token.Type.OPERATOR, "="),
-                    new Token(Token.Type.OPERATOR, ";")
-                ),
+            Arguments.of("Property", "object.property = value;",
+                new Ast.Stmt.Assignment(
+                    new Ast.Expr.Property(new Ast.Expr.Variable("object"), "property"),
+                    new Ast.Expr.Variable("value")
+                )
+            ),
+            Arguments.of("Nonsensical", "function() = value;",
+                new Ast.Stmt.Assignment(
+                    new Ast.Expr.Function("function", List.of()),
+                    new Ast.Expr.Variable("value")
+                )
+            ),
+            Arguments.of("Missing Value", "variable = ;",
                 new ParseException("", Optional.of(new Token(Token.Type.OPERATOR, ";")))
             )
         );
@@ -306,32 +283,79 @@ final class ParserTests {
 
     private static Stream<Arguments> testLiteralExpr() {
         return Stream.of(
-            Arguments.of("Nil",
-                List.of(new Token(Token.Type.IDENTIFIER, "NIL")),
+            Arguments.of("Nil", "NIL",
                 new Ast.Expr.Literal(null)
             ),
-            Arguments.of("Boolean",
-                List.of(new Token(Token.Type.IDENTIFIER, "TRUE")),
+            Arguments.of("True", "TRUE",
                 new Ast.Expr.Literal(true)
             ),
-            Arguments.of("Integer",
-                List.of(new Token(Token.Type.INTEGER, "1")),
+            Arguments.of("False", "FALSE",
+                new Ast.Expr.Literal(false)
+            ),
+            Arguments.of("Integer", "1",
                 new Ast.Expr.Literal(new BigInteger("1"))
             ),
-            Arguments.of("Decimal",
-                List.of(new Token(Token.Type.DECIMAL, "1.0")),
+            Arguments.of("Positive Integer", "+1",
+                new Ast.Expr.Literal(new BigInteger("1"))
+            ),
+            Arguments.of("Negative Integer", "-1",
+                new Ast.Expr.Literal(new BigInteger("-1"))
+            ),
+            Arguments.of("Integer Exponent", "1e3",
+                new Ast.Expr.Literal(new BigInteger("1000"))
+            ),
+            Arguments.of("Integer Positive Exponent", "1e+3",
+                new Ast.Expr.Literal(new BigInteger("1000"))
+            ),
+            Arguments.of("Integer Negative Exponent", "1000000e-3",
+                new Ast.Expr.Literal(new BigInteger("1000"))
+            ),
+            Arguments.of("Integer Invalid Exponent", "1e-3",
+                new ParseException("", Optional.of(new Token(Token.Type.INTEGER, "1e-3")))
+            ),
+            Arguments.of("Decimal", "1.0",
                 new Ast.Expr.Literal(new BigDecimal("1.0"))
             ),
-            Arguments.of("Character",
-                List.of(new Token(Token.Type.CHARACTER, "\'c\'")),
+            Arguments.of("Decimal Exponent", "1.0e3",
+                new Ast.Expr.Literal(new BigDecimal("1.0e3"))
+            ),
+            Arguments.of("Decimal Positive Exponent", "1.0e+3",
+                new Ast.Expr.Literal(new BigDecimal("1.0e3"))
+            ),
+            Arguments.of("Decimal Negative Exponent", "1.0e-3",
+                new Ast.Expr.Literal(new BigDecimal("1.0e-3"))
+            ),
+            Arguments.of("Character", "'c'",
                 new Ast.Expr.Literal('c')
             ),
-            Arguments.of("String",
-                List.of(new Token(Token.Type.STRING, "\"string\"")),
+            Arguments.of("Character Backspace Escape", "'\\b'",
+                new Ast.Expr.Literal('\b')
+            ),
+            Arguments.of("Character Newline Escape", "'\\n'",
+                new Ast.Expr.Literal('\n')
+            ),
+            Arguments.of("Character Backslash Escape", "'\\\\'",
+                new Ast.Expr.Literal('\\')
+            ),
+            Arguments.of("Character Single Quote Escape", "'\\''",
+                new Ast.Expr.Literal('\'')
+            ),
+            Arguments.of("Character Double Quote", "'\"'",
+                new Ast.Expr.Literal('"')
+            ),
+            Arguments.of("Character Double Quote Escape", "'\\\"'",
+                new Ast.Expr.Literal('"')
+            ),
+            Arguments.of("String", "\"string\"",
                 new Ast.Expr.Literal("string")
             ),
-            Arguments.of("String Newline Escape",
-                List.of(new Token(Token.Type.STRING, "\"Hello,\\nWorld!\"")),
+            Arguments.of("String Single Quote", "\"one'two\\'three\"",
+                new Ast.Expr.Literal("one'two'three")
+            ),
+            Arguments.of("String Double Quote Escape", "\"one\\\"two\"",
+                new Ast.Expr.Literal("one\"two")
+            ),
+            Arguments.of("String Newline Escape", "\"Hello,\\nWorld!\"",
                 new Ast.Expr.Literal("Hello,\nWorld!")
             )
         );
@@ -345,19 +369,19 @@ final class ParserTests {
 
     private static Stream<Arguments> testGroupExpr() {
         return Stream.of(
-            Arguments.of("Group",
-                List.of(
-                    new Token(Token.Type.OPERATOR, "("),
-                    new Token(Token.Type.IDENTIFIER, "expr"),
-                    new Token(Token.Type.OPERATOR, ")")
-                ),
+            Arguments.of("Group", "(expr)",
                 new Ast.Expr.Group(new Ast.Expr.Variable("expr"))
             ),
-            Arguments.of("Missing Expression",
-                List.of(
-                    new Token(Token.Type.OPERATOR, "("),
-                    new Token(Token.Type.OPERATOR, ")")
-                ),
+            Arguments.of("Nested Group", "((expr))",
+                new Ast.Expr.Group(new Ast.Expr.Group(new Ast.Expr.Variable("expr")))
+            ),
+            Arguments.of("Group Addition", "(a + b)",
+                new Ast.Expr.Group(new Ast.Expr.Binary("+",
+                    new Ast.Expr.Variable("a"),
+                    new Ast.Expr.Variable("b")
+                ))
+            ),
+            Arguments.of("Missing Expression", "()",
                 new ParseException("", Optional.of(new Token(Token.Type.OPERATOR, ")")))
             )
         );
@@ -371,78 +395,54 @@ final class ParserTests {
 
     private static Stream<Arguments> testBinaryExpr() {
         return Stream.of(
-            Arguments.of("Addition",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "left"),
-                    new Token(Token.Type.OPERATOR, "+"),
-                    new Token(Token.Type.IDENTIFIER, "right")
-                ),
-                new Ast.Expr.Binary(
-                    "+",
+            Arguments.of("Addition", "left + right",
+                new Ast.Expr.Binary("+",
                     new Ast.Expr.Variable("left"),
                     new Ast.Expr.Variable("right")
                 )
             ),
-            Arguments.of("Multiplication",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "left"),
-                    new Token(Token.Type.OPERATOR, "*"),
-                    new Token(Token.Type.IDENTIFIER, "right")
-                ),
-                new Ast.Expr.Binary(
-                    "*",
+            Arguments.of("Addition Whitespace", "1+2",
+                new ParseException("", Optional.of(new Token(Token.Type.INTEGER, "+2")))
+            ),
+            Arguments.of("Subtraction Whitespace", "1-2",
+                new ParseException("", Optional.of(new Token(Token.Type.INTEGER, "-2")))
+            ),
+            Arguments.of("Multiplication", "left * right",
+                new Ast.Expr.Binary("*",
                     new Ast.Expr.Variable("left"),
                     new Ast.Expr.Variable("right")
                 )
             ),
-            Arguments.of("Equal Precedence",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "first"),
-                    new Token(Token.Type.OPERATOR, "+"),
-                    new Token(Token.Type.IDENTIFIER, "second"),
-                    new Token(Token.Type.OPERATOR, "+"),
-                    new Token(Token.Type.IDENTIFIER, "third")
-                ),
-                new Ast.Expr.Binary(
-                    "+",
-                    new Ast.Expr.Binary(
-                        "+",
+            Arguments.of("Multiple Comparison", "1 == 2 < 3",
+                new Ast.Expr.Binary("<",
+                    new Ast.Expr.Binary("==",
+                        new Ast.Expr.Literal(BigInteger.valueOf(1)),
+                        new Ast.Expr.Literal(BigInteger.valueOf(2))
+                    ),
+                    new Ast.Expr.Literal(BigInteger.valueOf(3))
+                )
+            ),
+            Arguments.of("Equal Precedence", "first + second + third",
+                new Ast.Expr.Binary("+",
+                    new Ast.Expr.Binary("+",
                         new Ast.Expr.Variable("first"),
                         new Ast.Expr.Variable("second")
                     ),
                     new Ast.Expr.Variable("third")
                 )
             ),
-            Arguments.of("Lower Precedence",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "first"),
-                    new Token(Token.Type.OPERATOR, "+"),
-                    new Token(Token.Type.IDENTIFIER, "second"),
-                    new Token(Token.Type.OPERATOR, "*"),
-                    new Token(Token.Type.IDENTIFIER, "third")
-                ),
-                new Ast.Expr.Binary(
-                    "+",
+            Arguments.of("Lower Precedence", "first + second * third",
+                new Ast.Expr.Binary("+",
                     new Ast.Expr.Variable("first"),
-                    new Ast.Expr.Binary(
-                        "*",
+                    new Ast.Expr.Binary("*",
                         new Ast.Expr.Variable("second"),
                         new Ast.Expr.Variable("third")
                     )
                 )
             ),
-            Arguments.of("Higher Precedence",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "first"),
-                    new Token(Token.Type.OPERATOR, "*"),
-                    new Token(Token.Type.IDENTIFIER, "second"),
-                    new Token(Token.Type.OPERATOR, "+"),
-                    new Token(Token.Type.IDENTIFIER, "third")
-                ),
-                new Ast.Expr.Binary(
-                    "+",
-                    new Ast.Expr.Binary(
-                        "*",
+            Arguments.of("Higher Precedence", "first * second + third",
+                new Ast.Expr.Binary("+",
+                    new Ast.Expr.Binary("*",
                         new Ast.Expr.Variable("first"),
                         new Ast.Expr.Variable("second")
                     ),
@@ -460,10 +460,19 @@ final class ParserTests {
 
     private static Stream<Arguments> testVariableExpr() {
         return Stream.of(
-            Arguments.of("Variable",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "variable")
-                ),
+            Arguments.of("Nil", "nil",
+                new Ast.Expr.Variable("nil")
+            ),
+            Arguments.of("True", "true",
+                new Ast.Expr.Variable("true")
+            ),
+            Arguments.of("False", "false",
+                new Ast.Expr.Variable("false")
+            ),
+            Arguments.of("Let", "LET",
+                new Ast.Expr.Variable("LET")
+            ),
+            Arguments.of("Variable", "variable",
                 new Ast.Expr.Variable("variable")
             )
         );
@@ -477,22 +486,32 @@ final class ParserTests {
 
     private static Stream<Arguments> testPropertyExpr() {
         return Stream.of(
-            Arguments.of("Property",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "receiver"),
-                    new Token(Token.Type.OPERATOR, "."),
-                    new Token(Token.Type.IDENTIFIER, "property")
-                ),
+            Arguments.of("Property", "one.two",
                 new Ast.Expr.Property(
-                    new Ast.Expr.Variable("receiver"),
-                    "property"
+                    new Ast.Expr.Variable("one"),
+                    "two"
                 )
             ),
-            Arguments.of("Missing Name",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "receiver"),
-                    new Token(Token.Type.OPERATOR, ".")
-                ),
+            Arguments.of("Property of Property", "one.two.three",
+                new Ast.Expr.Property(
+                    new Ast.Expr.Property(
+                        new Ast.Expr.Variable("one"),
+                        "two"
+                    ),
+                    "three"
+                )
+            ),
+            Arguments.of("Property of Method", "one.two().three",
+                new Ast.Expr.Property(
+                    new Ast.Expr.Method(
+                        new Ast.Expr.Variable("one"),
+                        "two",
+                        List.of()
+                    ),
+                    "three"
+                )
+            ),
+            Arguments.of("Missing Name", "one.",
                 new ParseException("", Optional.empty())
             )
         );
@@ -506,24 +525,28 @@ final class ParserTests {
 
     private static Stream<Arguments> testFunctionExpr() {
         return Stream.of(
-            Arguments.of("Function",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "function"),
-                    new Token(Token.Type.OPERATOR, "("),
-                    new Token(Token.Type.OPERATOR, ")")
-                ),
+            Arguments.of("No Arguments", "function()",
                 new Ast.Expr.Function("function", List.of())
             ),
-            Arguments.of("Argument",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "function"),
-                    new Token(Token.Type.OPERATOR, "("),
-                    new Token(Token.Type.IDENTIFIER, "argument"),
-                    new Token(Token.Type.OPERATOR, ")")
-                ),
+            Arguments.of("One Argument", "function(one)",
                 new Ast.Expr.Function("function", List.of(
-                    new Ast.Expr.Variable("argument")
+                    new Ast.Expr.Variable("one")
                 ))
+            ),
+            Arguments.of("Two Arguments", "function(one, two)",
+                new Ast.Expr.Function("function", List.of(
+                    new Ast.Expr.Variable("one"),
+                    new Ast.Expr.Variable("two")
+                ))
+            ),
+            Arguments.of("Comma Only", "function(,)",
+                new ParseException("", Optional.of(new Token(Token.Type.OPERATOR, ",")))
+            ),
+            Arguments.of("Missing Comma", "function(one two)",
+                new ParseException("", Optional.of(new Token(Token.Type.IDENTIFIER, "two")))
+            ),
+            Arguments.of("Trailing Comma", "function(one,)",
+                new ParseException("", Optional.of(new Token(Token.Type.OPERATOR, ")")))
             )
         );
     }
@@ -547,6 +570,27 @@ final class ParserTests {
                 new Ast.Expr.Method(
                     new Ast.Expr.Variable("receiver"),
                     "method",
+                    List.of()
+                )
+            ),
+            Arguments.of("Method of Property", "one.two.three()",
+                new Ast.Expr.Method(
+                    new Ast.Expr.Property(
+                        new Ast.Expr.Variable("one"),
+                        "two"
+                    ),
+                    "three",
+                    List.of()
+                )
+            ),
+            Arguments.of("Method of Method", "one.two().three()",
+                new Ast.Expr.Method(
+                    new Ast.Expr.Method(
+                        new Ast.Expr.Variable("one"),
+                        "two",
+                        List.of()
+                    ),
+                    "three",
                     List.of()
                 )
             ),
@@ -584,6 +628,20 @@ final class ParserTests {
 
     private static Stream<Arguments> testObjectExpr() {
         return Stream.of(
+            Arguments.of("Empty", "OBJECT DO END",
+                new Ast.Expr.ObjectExpr(
+                    Optional.empty(),
+                    List.of(),
+                    List.of()
+                )
+            ),
+            Arguments.of("Empty Named", "OBJECT END DO END",
+                new Ast.Expr.ObjectExpr(
+                    Optional.of("END"),
+                    List.of(),
+                    List.of()
+                )
+            ),
             Arguments.of("Field",
                 List.of(
                     new Token(Token.Type.IDENTIFIER, "OBJECT"),
@@ -628,6 +686,74 @@ final class ParserTests {
 
     public static Stream<Arguments> testProgram() {
         return Stream.of(
+            Arguments.of("Distance",
+                """
+                DEF distance(a, b) DO
+                    LET dx = b.x - a.x;
+                    LET dy = b.y - a.y;
+                    LET dz = b.z - a.z;
+                    RETURN sqrt(dx * dx + dy * dy + dz * dz);
+                END
+                print(distance(OBJECT DO LET x = 0; LET y = -2; LET z = 14e0; END,
+                               OBJECT DO LET x = 4; LET y = 3; LET z = 140e-1; END));
+                """,
+                new Ast.Source(List.of(
+                    new Ast.Stmt.Def("distance", List.of("a", "b"), List.of(
+                        new Ast.Stmt.Let("dx", Optional.of(new Ast.Expr.Binary("-",
+                            new Ast.Expr.Property(new Ast.Expr.Variable("b"), "x"),
+                            new Ast.Expr.Property(new Ast.Expr.Variable("a"), "x")
+                        ))),
+                        new Ast.Stmt.Let("dy", Optional.of(new Ast.Expr.Binary("-",
+                            new Ast.Expr.Property(new Ast.Expr.Variable("b"), "y"),
+                            new Ast.Expr.Property(new Ast.Expr.Variable("a"), "y")
+                        ))),
+                        new Ast.Stmt.Let("dz", Optional.of(new Ast.Expr.Binary("-",
+                            new Ast.Expr.Property(new Ast.Expr.Variable("b"), "z"),
+                            new Ast.Expr.Property(new Ast.Expr.Variable("a"), "z")
+                        ))),
+                        new Ast.Stmt.Return(Optional.of(new Ast.Expr.Function("sqrt", List.of(
+                            new Ast.Expr.Binary("+",
+                                new Ast.Expr.Binary("+",
+                                    new Ast.Expr.Binary("*",
+                                        new Ast.Expr.Variable("dx"),
+                                        new Ast.Expr.Variable("dx")
+                                    ),
+                                    new Ast.Expr.Binary("*",
+                                        new Ast.Expr.Variable("dy"),
+                                        new Ast.Expr.Variable("dy")
+                                    )
+                                ),
+                                new Ast.Expr.Binary("*",
+                                    new Ast.Expr.Variable("dz"),
+                                    new Ast.Expr.Variable("dz")
+                                )
+                            )
+                        ))))
+                    )),
+                    new Ast.Stmt.Expression(new Ast.Expr.Function("print", List.of(
+                        new Ast.Expr.Function("distance", List.of(
+                            new Ast.Expr.ObjectExpr(
+                                Optional.empty(),
+                                List.of(
+                                    new Ast.Stmt.Let("x", Optional.of(new Ast.Expr.Literal(BigInteger.valueOf(0)))),
+                                    new Ast.Stmt.Let("y", Optional.of(new Ast.Expr.Literal(BigInteger.valueOf(-2)))),
+                                    new Ast.Stmt.Let("z", Optional.of(new Ast.Expr.Literal(BigInteger.valueOf(14))))
+                                ),
+                                List.of()
+                            ),
+                            new Ast.Expr.ObjectExpr(
+                                Optional.empty(),
+                                List.of(
+                                    new Ast.Stmt.Let("x", Optional.of(new Ast.Expr.Literal(BigInteger.valueOf(4)))),
+                                    new Ast.Stmt.Let("y", Optional.of(new Ast.Expr.Literal(BigInteger.valueOf(3)))),
+                                    new Ast.Stmt.Let("z", Optional.of(new Ast.Expr.Literal(BigInteger.valueOf(14))))
+                                ),
+                                List.of()
+                            )
+                        ))
+                    )))
+                ))
+            ),
             Arguments.of("Hello World",
                 """
                 DEF main() DO
