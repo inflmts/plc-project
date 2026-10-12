@@ -18,13 +18,13 @@ public sealed interface Ast {
         record Let(
             String name,
             Optional<Expr> value
-        ) implements Ast.Stmt {}
+        ) implements Stmt {}
 
         record Def(
             String name,
             List<String> parameters,
             List<Stmt> body
-        ) implements Ast.Stmt {}
+        ) implements Stmt {}
 
         record If(
             Expr condition,
@@ -58,11 +58,14 @@ public sealed interface Ast {
         record Literal(
             Object value
         ) implements Expr {
+
             @Override
             public String toString() {
+                //Include class (type) for debugging values that print the same, e.g. 1 and "1"
                 var clazz = value != null ? value.getClass().getSimpleName() : "N/A";
                 return "Literal[value=" + value + ", class=" + clazz + "]";
             }
+
         }
 
         record Group(
@@ -101,6 +104,49 @@ public sealed interface Ast {
             List<Stmt.Let> fields,
             List<Stmt.Def> methods
         ) implements Expr {}
+
+    }
+
+    //New (Evaluator): Visitor pattern for tree-walk interpreter.
+    interface Visitor<T, E extends Exception> {
+
+        default T visit(Ast ast) throws E {
+            return switch (ast) {
+                case Source source -> visit(source);
+                case Stmt.Let stmt -> visit(stmt);
+                case Stmt.Def stmt -> visit(stmt);
+                case Stmt.If stmt -> visit(stmt);
+                case Stmt.For stmt -> visit(stmt);
+                case Stmt.Return stmt -> visit(stmt);
+                case Stmt.Expression stmt -> visit(stmt);
+                case Stmt.Assignment stmt -> visit(stmt);
+                case Expr.Literal expr -> visit(expr);
+                case Expr.Group expr -> visit(expr);
+                case Expr.Binary expr -> visit(expr);
+                case Expr.Variable expr -> visit(expr);
+                case Expr.Property expr -> visit(expr);
+                case Expr.Function expr -> visit(expr);
+                case Expr.Method expr -> visit(expr);
+                case Expr.ObjectExpr expr -> visit(expr);
+            };
+        }
+
+        T visit(Source ast) throws E;
+        T visit(Stmt.Let ast) throws E;
+        T visit(Stmt.Def ast) throws E;
+        T visit(Stmt.If ast) throws E;
+        T visit(Stmt.For ast) throws E;
+        T visit(Stmt.Return ast) throws E;
+        T visit(Stmt.Expression ast) throws E;
+        T visit(Stmt.Assignment ast) throws E;
+        T visit(Expr.Literal ast) throws E;
+        T visit(Expr.Group ast) throws E;
+        T visit(Expr.Binary ast) throws E;
+        T visit(Expr.Variable ast) throws E;
+        T visit(Expr.Property ast) throws E;
+        T visit(Expr.Function ast) throws E;
+        T visit(Expr.Method ast) throws E;
+        T visit(Expr.ObjectExpr ast) throws E;
 
     }
 
