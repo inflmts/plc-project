@@ -97,8 +97,11 @@ public final class Parser {
                 parameters.add(tokens.get(-1).literal());
             }
         }
-        if (!tokens.match(")", "DO")) {
-            throw new ParseException("Expected ') DO'", tokens.getNext());
+        if (!tokens.match(")")) {
+            throw new ParseException("Expected ')'", tokens.getNext());
+        }
+        if (!tokens.match("DO")) {
+            throw new ParseException("Expected 'DO'", tokens.getNext());
         }
         while (!tokens.match("END")) {
             body.add(parseStmt());
@@ -331,14 +334,14 @@ public final class Parser {
         }
         var fields = new ArrayList<Ast.Stmt.Let>();
         var methods = new ArrayList<Ast.Stmt.Def>();
-        while (!tokens.match("END")) {
-            if (tokens.peek("LET")) {
-                fields.add((Ast.Stmt.Let) parseLetStmt());
-            } else if (tokens.peek("DEF")) {
-                methods.add((Ast.Stmt.Def) parseDefStmt());
-            } else {
-                throw new ParseException("Expected 'LET', 'DEF', or 'END'", tokens.getNext());
-            }
+        while (tokens.peek("LET")) {
+            fields.add((Ast.Stmt.Let) parseLetStmt());
+        }
+        while (tokens.peek("DEF")) {
+            methods.add((Ast.Stmt.Def) parseDefStmt());
+        }
+        if (!tokens.match("END")) {
+            throw new ParseException("Expected 'END' after object expression", tokens.getNext());
         }
         return new Ast.Expr.ObjectExpr(name, fields, methods);
     }

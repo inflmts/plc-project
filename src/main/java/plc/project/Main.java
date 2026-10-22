@@ -10,6 +10,7 @@ import plc.project.lexer.Lexer;
 import plc.project.parser.ParseException;
 import plc.project.parser.Parser;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.function.Function;
@@ -32,7 +33,12 @@ public final class Main {
     static void main() {
         System.out.println("REPL running, enter empty line for multiline input.");
         while (true) {
-            var input = readInput();
+            String input;
+            try {
+                input = readInput();
+            } catch (NoSuchElementException e) {
+                break;
+            }
             try {
                 REPL.evaluate(input);
             } catch (LexException | ParseException | EvaluateException e) {

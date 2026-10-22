@@ -44,6 +44,36 @@ final class EvaluatorTests {
                 )),
                 List.of()
             ),
+            Arguments.of("range Empty",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.Expression(new Ast.Expr.Function("range", List.of(
+                        new Ast.Expr.Literal(new BigInteger("1")),
+                        new Ast.Expr.Literal(new BigInteger("1"))
+                    )))
+                )),
+                new RuntimeValue.Primitive(List.of()),
+                List.of()
+            ),
+            Arguments.of("range Invalid Argument",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.Expression(new Ast.Expr.Function("range", List.of(
+                        new Ast.Expr.Literal(new BigDecimal("1")),
+                        new Ast.Expr.Literal(new BigDecimal("5"))
+                    )))
+                )),
+                new EvaluateException("", Optional.empty()),
+                List.of()
+            ),
+            Arguments.of("range Invalid Range",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.Expression(new Ast.Expr.Function("range", List.of(
+                        new Ast.Expr.Literal(new BigInteger("2")),
+                        new Ast.Expr.Literal(new BigInteger("1"))
+                    )))
+                )),
+                new EvaluateException("", Optional.empty()),
+                List.of()
+            ),
             Arguments.of("isinstance Object",
                 new Ast.Source(List.of(
                     new Ast.Stmt.Expression(new Ast.Expr.Function("isinstance", List.of(
@@ -52,6 +82,16 @@ final class EvaluatorTests {
                     )))
                 )),
                 new RuntimeValue.Primitive(true),
+                List.of()
+            ),
+            Arguments.of("isinstance Invalid Prototype",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.Expression(new Ast.Expr.Function("isinstance", List.of(
+                        new Ast.Expr.Variable("object"),
+                        new Ast.Expr.Literal(null)
+                    )))
+                )),
+                new EvaluateException("", Optional.empty()),
                 List.of()
             ),
             Arguments.of("isinstance String",
@@ -94,6 +134,28 @@ final class EvaluatorTests {
                     new RuntimeValue.Primitive(new BigInteger("2")),
                     new RuntimeValue.Primitive(new BigInteger("3"))
                 )
+            ),
+            Arguments.of("Unhandled Return Nested",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.If(
+                        new Ast.Expr.Literal(true),
+                        List.of(new Ast.Stmt.Return(Optional.empty())),
+                        List.of()
+                    )
+                )),
+                new EvaluateException("", Optional.of(new Ast.Stmt.Return(Optional.empty()))),
+                List.of()
+            ),
+            Arguments.of("Unhandled Return Skipped",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.If(
+                        new Ast.Expr.Literal(false),
+                        List.of(new Ast.Stmt.Return(Optional.empty())),
+                        List.of()
+                    )
+                )),
+                new RuntimeValue.Primitive(null),
+                List.of()
             ),
             //Duplicated in testReturnStmt, but is part of the spec for Source.
             Arguments.of("Unhandled Return",
@@ -177,6 +239,20 @@ final class EvaluatorTests {
                 new RuntimeValue.Primitive(null),
                 List.of(new RuntimeValue.Primitive("argument"))
             ),
+            Arguments.of("Duplicate Parameter",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.Def("name", List.of("parameter", "parameter"), List.of())
+                )),
+                new EvaluateException("", Optional.of(new Ast.Stmt.Def("name", List.of("parameter", "parameter"), List.of()))),
+                List.of()
+            ),
+            Arguments.of("Duplicate Parameter With Gap",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.Def("name", List.of("parameter", "gap", "parameter"), List.of())
+                )),
+                new EvaluateException("", Optional.of(new Ast.Stmt.Def("name", List.of("parameter", "gap", "parameter"), List.of()))),
+                List.of()
+            ),
             //Duplicated in testReturnStmt, but is part of the spec for Def.
             Arguments.of("Return Value",
                 new Ast.Source(List.of(
@@ -199,6 +275,52 @@ final class EvaluatorTests {
 
     private static Stream<Arguments> testIfStmt() {
         return Stream.of(
+            Arguments.of("Accessing Outer Scope",
+                """
+                LET x = 1;
+                IF TRUE DO
+                    x = 2;
+                END
+                x;
+                """,
+                new RuntimeValue.Primitive(new BigInteger("2")),
+                List.of()
+            ),
+            Arguments.of("Shadowing",
+                """
+                LET x = 1;
+                IF TRUE DO
+                    LET x = 2;
+                    log(x);
+                END
+                x;
+                """,
+                new RuntimeValue.Primitive(new BigInteger("1")),
+                List.of(new RuntimeValue.Primitive(new BigInteger("2")))
+            ),
+            Arguments.of("Shadowing Using Outer Variable",
+                """
+                LET x = 1;
+                IF TRUE DO
+                    LET x = x + 1;
+                    log(x);
+                END
+                x;
+                """,
+                new RuntimeValue.Primitive(new BigInteger("1")),
+                List.of(new RuntimeValue.Primitive(new BigInteger("2")))
+            ),
+            Arguments.of("Not Boolean",
+                new Ast.Source(List.of(
+                    new Ast.Stmt.If(
+                        new Ast.Expr.Literal(BigInteger.ONE),
+                        List.of(new Ast.Stmt.Expression(new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal("then"))))),
+                        List.of(new Ast.Stmt.Expression(new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal("else")))))
+                    )
+                )),
+                new EvaluateException("", Optional.of(new Ast.Expr.Literal(new BigInteger("1")))),
+                List.of()
+            ),
             Arguments.of("Then",
                 new Ast.Source(List.of(
                     new Ast.Stmt.If(
@@ -440,6 +562,18 @@ final class EvaluatorTests {
                 new RuntimeValue.Primitive("leftright"),
                 List.of()
             ),
+            Arguments.of("Op+ Different Types",
+                new Ast.Expr.Binary(
+                    "+",
+                    new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal(new BigInteger("1")))),
+                    new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal(new BigDecimal("2.0"))))
+                ),
+                new EvaluateException("", Optional.of(new Ast.Expr.Literal(new BigDecimal("2.0")))),
+                List.of(
+                    new RuntimeValue.Primitive(new BigInteger("1")),
+                    new RuntimeValue.Primitive(new BigDecimal("2.0"))
+                )
+            ),
             Arguments.of("Op+ Evaluation Order Left Validation Error",
                 new Ast.Expr.Binary(
                     "+",
@@ -494,6 +628,15 @@ final class EvaluatorTests {
                 new RuntimeValue.Primitive(false),
                 List.of()
             ),
+            Arguments.of("Op== Different Types",
+                new Ast.Expr.Binary(
+                    "==",
+                    new Ast.Expr.Literal(true),
+                    new Ast.Expr.Literal(new BigInteger("1"))
+                ),
+                new RuntimeValue.Primitive(false),
+                List.of()
+            ),
             Arguments.of("OpAND False",
                 new Ast.Expr.Binary(
                     "AND",
@@ -502,6 +645,15 @@ final class EvaluatorTests {
                 ),
                 new RuntimeValue.Primitive(false),
                 List.of()
+            ),
+            Arguments.of("OpAND False Short-Circuit",
+                new Ast.Expr.Binary(
+                    "AND",
+                    new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal(false))),
+                    new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal(true)))
+                ),
+                new RuntimeValue.Primitive(false),
+                List.of(new RuntimeValue.Primitive(false))
             ),
             Arguments.of("OpOR True Short-Circuit",
                 new Ast.Expr.Binary(

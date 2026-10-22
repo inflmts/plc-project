@@ -93,27 +93,13 @@ final class ParserTests {
 
     private static Stream<Arguments> testDefStmt() {
         return Stream.of(
-            Arguments.of("Def",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "DEF"),
-                    new Token(Token.Type.IDENTIFIER, "name"),
-                    new Token(Token.Type.OPERATOR, "("),
-                    new Token(Token.Type.OPERATOR, ")"),
-                    new Token(Token.Type.IDENTIFIER, "DO"),
-                    new Token(Token.Type.IDENTIFIER, "END")
-                ),
+            Arguments.of("Def", "DEF name () DO END",
                 new Ast.Stmt.Def("name", List.of(), List.of())
             ),
-            Arguments.of("Parameter",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "DEF"),
-                    new Token(Token.Type.IDENTIFIER, "name"),
-                    new Token(Token.Type.OPERATOR, "("),
-                    new Token(Token.Type.IDENTIFIER, "parameter"),
-                    new Token(Token.Type.OPERATOR, ")"),
-                    new Token(Token.Type.IDENTIFIER, "DO"),
-                    new Token(Token.Type.IDENTIFIER, "END")
-                ),
+            Arguments.of("Missing Do", "DEF name () END",
+                new ParseException("", Optional.of(new Token(Token.Type.IDENTIFIER, "END")))
+            ),
+            Arguments.of("Parameter", "DEF name (parameter) DO END",
                 new Ast.Stmt.Def("name", List.of("parameter"), List.of())
             )
         );
@@ -622,7 +608,7 @@ final class ParserTests {
 
     @ParameterizedTest
     @MethodSource
-    void testObjectExpr(String test, Object input, Ast.Expr.ObjectExpr expected) {
+    void testObjectExpr(String test, Object input, Object expected) {
         test("expr", input, expected);
     }
 
@@ -635,45 +621,50 @@ final class ParserTests {
                     List.of()
                 )
             ),
-            Arguments.of("Empty Named", "OBJECT END DO END",
+            Arguments.of("Empty Do", "OBJECT DO DO END",
+                new ParseException("", Optional.of(new Token(Token.Type.IDENTIFIER, "DO")))
+            ),
+            Arguments.of("Empty End", "OBJECT END DO END",
                 new Ast.Expr.ObjectExpr(
                     Optional.of("END"),
                     List.of(),
                     List.of()
                 )
             ),
-            Arguments.of("Field",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "OBJECT"),
-                    new Token(Token.Type.IDENTIFIER, "DO"),
-                    new Token(Token.Type.IDENTIFIER, "LET"),
-                    new Token(Token.Type.IDENTIFIER, "field"),
-                    new Token(Token.Type.OPERATOR, ";"),
-                    new Token(Token.Type.IDENTIFIER, "END")
-                ),
+            Arguments.of("Field", "OBJECT DO LET field; END",
                 new Ast.Expr.ObjectExpr(
                     Optional.empty(),
                     List.of(new Ast.Stmt.Let("field", Optional.empty())),
                     List.of()
                 )
             ),
-            Arguments.of("Method",
-                List.of(
-                    new Token(Token.Type.IDENTIFIER, "OBJECT"),
-                    new Token(Token.Type.IDENTIFIER, "DO"),
-                    new Token(Token.Type.IDENTIFIER, "DEF"),
-                    new Token(Token.Type.IDENTIFIER, "method"),
-                    new Token(Token.Type.OPERATOR, "("),
-                    new Token(Token.Type.OPERATOR, ")"),
-                    new Token(Token.Type.IDENTIFIER, "DO"),
-                    new Token(Token.Type.IDENTIFIER, "END"),
-                    new Token(Token.Type.IDENTIFIER, "END")
-                ),
+            Arguments.of("Method", "OBJECT DO DEF method() DO END END",
                 new Ast.Expr.ObjectExpr(
                     Optional.empty(),
                     List.of(),
                     List.of(new Ast.Stmt.Def("method", List.of(), List.of()))
                 )
+            ),
+            Arguments.of("Nested", "OBJECT DO LET field = OBJECT DO END; END",
+                new Ast.Expr.ObjectExpr(
+                    Optional.empty(),
+                    List.of(new Ast.Stmt.Let("field", Optional.of(new Ast.Expr.ObjectExpr(
+                        Optional.empty(),
+                        List.of(),
+                        List.of()
+                    )))),
+                    List.of()
+                )
+            ),
+            Arguments.of("Field Before Method", "OBJECT DO LET field; DEF method() DO END END",
+                new Ast.Expr.ObjectExpr(
+                    Optional.empty(),
+                    List.of(new Ast.Stmt.Let("field", Optional.empty())),
+                    List.of(new Ast.Stmt.Def("method", List.of(), List.of()))
+                )
+            ),
+            Arguments.of("Field After Method", "OBJECT DO DEF method() DO END LET field; END",
+                new ParseException("", Optional.of(new Token(Token.Type.IDENTIFIER, "LET")))
             )
         );
     }
