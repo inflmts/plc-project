@@ -833,6 +833,15 @@ final class EvaluatorTests {
 
     public static Stream<Arguments> testProgram() {
         return Stream.of(
+            Arguments.of("Closure",
+                """
+                LET x = "outer";
+                DEF f() DO RETURN x; END
+                IF TRUE DO LET x = "inner"; f(); END
+                """,
+                new RuntimeValue.Primitive("outer"),
+                List.of()
+            ),
             Arguments.of("Hello World",
                 """
                 DEF main() DO

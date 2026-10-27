@@ -53,16 +53,19 @@ public final class Evaluator implements Ast.Visitor<RuntimeValue, EvaluateExcept
         Scope parent = scope;
         scope = new Scope(parent);
         RuntimeValue value = new RuntimeValue.Primitive(null);
-        if (conditionBoolean) {
-            for (var stmt : ast.thenBody()) {
-                value = visit(stmt);
+        try {
+            if (conditionBoolean) {
+                for (var stmt : ast.thenBody()) {
+                    value = visit(stmt);
+                }
+            } else {
+                for (var stmt : ast.elseBody()) {
+                    value = visit(stmt);
+                }
             }
-        } else {
-            for (var stmt : ast.elseBody()) {
-                value = visit(stmt);
-            }
+        } finally {
+            scope = parent;
         }
-        scope = parent;
         return value;
     }
 
@@ -73,15 +76,18 @@ public final class Evaluator implements Ast.Visitor<RuntimeValue, EvaluateExcept
             throw new EvaluateException("FOR expression is not iterable", Optional.of(ast.expression()));
         }
         Scope parent = scope;
-        for (var iterationValue : iterable) {
-            Scope iterationScope = new Scope(parent);
-            iterationScope.define(ast.name(), (RuntimeValue) iterationValue);
-            scope = new Scope(iterationScope);
-            for (var stmt : ast.body()) {
-                visit(stmt);
+        try {
+            for (var iterationValue : iterable) {
+                Scope iterationScope = new Scope(parent);
+                iterationScope.define(ast.name(), (RuntimeValue) iterationValue);
+                scope = new Scope(iterationScope);
+                for (var stmt : ast.body()) {
+                    visit(stmt);
+                }
             }
+        } finally {
+            scope = parent;
         }
-        scope = parent;
         return new RuntimeValue.Primitive(null);
     }
 
@@ -206,13 +212,21 @@ public final class Evaluator implements Ast.Visitor<RuntimeValue, EvaluateExcept
                     if (!(right instanceof RuntimeValue.Primitive(BigInteger rightInteger))) {
                         throw new EvaluateException("Cannot divide integer with non-integer", Optional.of(ast.right()));
                     }
-                    return new RuntimeValue.Primitive(leftInteger.divide(rightInteger));
+                    try {
+                        return new RuntimeValue.Primitive(leftInteger.divide(rightInteger));
+                    } catch (ArithmeticException e) {
+                        throw new EvaluateException("Cannot divide by zero", Optional.of(ast.right()));
+                    }
                 } else if (left instanceof RuntimeValue.Primitive(BigDecimal leftDecimal)) {
                     var right = visit(ast.right());
                     if (!(right instanceof RuntimeValue.Primitive(BigDecimal rightDecimal))) {
                         throw new EvaluateException("Cannot divide decimal with non-decimal", Optional.of(ast.right()));
                     }
-                    return new RuntimeValue.Primitive(leftDecimal.divide(rightDecimal, RoundingMode.HALF_EVEN));
+                    try {
+                        return new RuntimeValue.Primitive(leftDecimal.divide(rightDecimal, RoundingMode.HALF_EVEN));
+                    } catch (ArithmeticException e) {
+                        throw new EvaluateException("Cannot divide by zero", Optional.of(ast.right()));
+                    }
                 } else {
                     throw new EvaluateException("Cannot divide non-numeric types", Optional.of(ast.left()));
                 }
