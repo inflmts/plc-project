@@ -842,6 +842,18 @@ final class EvaluatorTests {
                 new RuntimeValue.Primitive("outer"),
                 List.of()
             ),
+            Arguments.of("Shadowing",
+                """
+                LET variable = "initial";
+                IF TRUE DO
+                    variable = "assigned";
+                    LET variable = "declared";
+                END
+                variable;
+                """,
+                new RuntimeValue.Primitive("assigned"),
+                List.of()
+            ),
             Arguments.of("Hello World",
                 """
                 DEF main() DO
