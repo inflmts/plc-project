@@ -13,7 +13,7 @@ public final class EvaluateException extends Exception {
 
     public EvaluateException(String message, Optional<Ast> ast) {
         super(message + "\n - @ ast " + ast.map(Object::toString).orElse("<native code>"));
-        this.ast = Optional.empty();
+        this.ast = ast; //fixed always being set to Optional.empty(), may surface new test errors.
     }
 
     public Optional<Ast> getAst() {

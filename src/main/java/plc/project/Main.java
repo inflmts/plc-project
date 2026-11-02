@@ -1,16 +1,17 @@
 package plc.project;
 
-import plc.project.evaluator.Environment;
+import plc.project.analyzer.AnalyzeException;
+import plc.project.analyzer.Analyzer;
+import plc.project.analyzer.Type;
 import plc.project.evaluator.EvaluateException;
 import plc.project.evaluator.Evaluator;
 import plc.project.evaluator.RuntimeValue;
-import plc.project.evaluator.Scope;
 import plc.project.lexer.LexException;
 import plc.project.lexer.Lexer;
 import plc.project.parser.ParseException;
 import plc.project.parser.Parser;
 
-import java.util.NoSuchElementException;
+import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.function.Function;
@@ -25,23 +26,18 @@ import java.util.regex.Pattern;
 public final class Main {
 
     private interface Repl {
-        void evaluate(String input) throws LexException, ParseException, EvaluateException;
+        void evaluate(String input) throws LexException, ParseException, AnalyzeException, EvaluateException;
     }
 
-    private static final Repl REPL = Main::evaluator; //edit for manual testing
+    private static final Repl REPL = Main::analyzer; //edit for manual testing
 
     static void main() {
         System.out.println("REPL running, enter empty line for multiline input.");
         while (true) {
-            String input;
-            try {
-                input = readInput();
-            } catch (NoSuchElementException e) {
-                break;
-            }
+            var input = readInput();
             try {
                 REPL.evaluate(input);
-            } catch (LexException | ParseException | EvaluateException e) {
+            } catch (LexException | ParseException | AnalyzeException | EvaluateException e) {
                 System.out.println(e.getClass().getSimpleName() + ": " + e.getMessage());
             } catch (RuntimeException e) {
                 e.printStackTrace(System.err);
@@ -66,8 +62,8 @@ public final class Main {
     private static final Evaluator EVALUATOR; // Global instance to preserve Evaluator state
 
     static {
-        var scope = Environment.scope();
-        EVALUATOR = new Evaluator(new Scope(scope));
+        var scope = plc.project.evaluator.Environment.scope();
+        EVALUATOR = new Evaluator(new plc.project.evaluator.Scope(scope));
         scope.define("log", new RuntimeValue.Function("log", arguments -> {
             if (arguments.size() != 1) {
                 throw new EvaluateException("Invalid 'log' invocation, incorrect number of arguments (expected 1, received " + arguments.size() + ").", Optional.empty());
@@ -75,7 +71,7 @@ public final class Main {
             System.out.println("log: " + arguments.getFirst().print());
             return arguments.getFirst();
         }));
-        scope.define("scope", new RuntimeValue.Function("dynamic_scope", _ -> {
+        scope.define("scope", new RuntimeValue.Function("scope", _ -> {
             return new RuntimeValue.Primitive(EVALUATOR.getScope()); //returns *current* scope
         }));
     }
@@ -84,7 +80,26 @@ public final class Main {
         var tokens = new Lexer(input).lex();
         var ast = new Parser(tokens).parse("source"); //edit for manual testing
         var value = EVALUATOR.visit(ast);
-        System.out.println(prettify(value.toString()));
+        System.out.println("RuntimeValue." + prettify(value.toString()));
+    }
+
+    private static final Analyzer ANALYZER; // Global instance to preserve Analyzer state
+
+    static {
+        var scope = plc.project.analyzer.Environment.scope();
+        ANALYZER = new Analyzer(new plc.project.analyzer.Scope(scope));
+        scope.declare("log", new Type.Function(List.of(Type.ANY), Type.DYNAMIC));
+        scope.declare("scope", new Type.Function(List.of(), Type.DYNAMIC));
+    }
+
+    private static void analyzer(String input) throws LexException, ParseException, EvaluateException, AnalyzeException {
+        var tokens = new Lexer(input).lex();
+        var ast = new Parser(tokens).parse("source"); //edit for manual testing
+        var type = ANALYZER.visit(ast);
+        System.out.println("Type." + prettify(type.toString()));
+        // Uncomment to evaluate. WARNING: Analyzer/Evaluator state can become desynced from evaluator errors!
+        // var value = EVALUATOR.visit(ast);
+        // System.out.println("RuntimeValue." + prettify(value.toString()));
     }
 
     private static final Scanner SCANNER = new Scanner(System.in);

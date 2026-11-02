@@ -17,14 +17,27 @@ public sealed interface Ast {
 
         record Let(
             String name,
+            Optional<String> type,
             Optional<Expr> value
-        ) implements Stmt {}
+        ) implements Stmt {
+            //Overload without types for backwards compatibility
+            public Let(String name, Optional<Expr> value) {
+                this(name, Optional.empty(), value);
+            }
+        }
 
         record Def(
             String name,
             List<String> parameters,
+            List<Optional<String>> parameterTypes,
+            Optional<String> returnType,
             List<Stmt> body
-        ) implements Stmt {}
+        ) implements Stmt {
+            //Overload without types for backwards compatibility
+            public Def(String name, List<String> parameters, List<Stmt> body) {
+                this(name, parameters, parameters.stream().map(_ -> Optional.<String>empty()).toList(), Optional.empty(), body);
+            }
+        }
 
         record If(
             Expr condition,
