@@ -70,11 +70,12 @@ public final class Parser {
             throw new ParseException("Expected variable name", tokens.getNext());
         }
         var name = tokens.get(-1).literal();
+        var type = parseType();
         Optional<Ast.Expr> value = tokens.match("=") ? Optional.of(parseExpr()) : Optional.empty();
         if (!tokens.match(";")) {
             throw new ParseException("Expected ';'", tokens.getNext());
         }
-        return new Ast.Stmt.Let(name, value);
+        return new Ast.Stmt.Let(name, type, value);
     }
 
     private Ast.Stmt parseDefStmt() throws ParseException {
@@ -84,29 +85,33 @@ public final class Parser {
         }
         var name = tokens.get(-1).literal();
         var parameters = new ArrayList<String>();
+        var parameterTypes = new ArrayList<Optional<String>>();
         var body = new ArrayList<Ast.Stmt>();
         if (!tokens.match("(")) {
             throw new ParseException("Expected '('", tokens.getNext());
         }
         if (tokens.match(Token.Type.IDENTIFIER)) {
             parameters.add(tokens.get(-1).literal());
+            parameterTypes.add(parseType());
             while (tokens.match(",")) {
                 if (!tokens.match(Token.Type.IDENTIFIER)) {
                     throw new ParseException("Expected parameter name after ','", tokens.getNext());
                 }
                 parameters.add(tokens.get(-1).literal());
+                parameterTypes.add(parseType());
             }
         }
         if (!tokens.match(")")) {
             throw new ParseException("Expected ')'", tokens.getNext());
         }
+        var returnType = parseType();
         if (!tokens.match("DO")) {
             throw new ParseException("Expected 'DO'", tokens.getNext());
         }
         while (!tokens.match("END")) {
             body.add(parseStmt());
         }
-        return new Ast.Stmt.Def(name, parameters, body);
+        return new Ast.Stmt.Def(name, parameters, parameterTypes, returnType, body);
     }
 
     private Ast.Stmt parseIfStmt() throws ParseException {
@@ -363,6 +368,16 @@ public final class Parser {
             }
         }
         return new Ast.Expr.Function(name, arguments);
+    }
+
+    private Optional<String> parseType() throws ParseException {
+        if (!tokens.match(":")) {
+            return Optional.empty();
+        }
+        if (!tokens.match(Token.Type.IDENTIFIER)) {
+            throw new ParseException("Expected type after ':'", tokens.getNext());
+        }
+        return Optional.of(tokens.get(-1).literal());
     }
 
     private static final class TokenStream {
