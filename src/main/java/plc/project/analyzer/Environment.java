@@ -34,7 +34,6 @@ public final class Environment {
         scope.declare("comparable", Type.COMPARABLE);
         scope.declare("iterable", Type.ITERABLE);
         //"Native" functions for printing and creating lists.
-        scope.declare("log", new Type.Function(List.of(Type.ANY), Type.DYNAMIC));
         scope.declare("debug", new Type.Function(List.of(Type.ANY), Type.NIL));
         scope.declare("print", new Type.Function(List.of(Type.ANY), Type.NIL));
         scope.declare("list", Type.DYNAMIC); //why Type.DYNAMIC?

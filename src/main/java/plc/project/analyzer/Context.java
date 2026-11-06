@@ -19,11 +19,11 @@ public final class Context {
         this.scope = scope;
         this.function = function;
         this.returns = returns;
-        this.uninitialized = new HashSet<>(uninitialized);
+        this.uninitialized = uninitialized;
     }
 
     public Context(Context parent) {
-        this(parent.scope, parent.function, parent.returns, parent.uninitialized);
+        this(new Scope(parent.scope), parent.function, parent.returns, new HashSet<>(parent.uninitialized));
     }
 
     public Scope scope() { return scope; }
