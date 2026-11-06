@@ -78,8 +78,11 @@ public final class Evaluator implements Ast.Visitor<RuntimeValue, EvaluateExcept
         Scope parent = scope;
         try {
             for (var iterationValue : iterable) {
+                if (!(iterationValue instanceof RuntimeValue iterationRuntimeValue)) {
+                    throw new EvaluateException("FOR iteration value must be a RuntimeValue", Optional.of(ast.expression()));
+                }
                 Scope iterationScope = new Scope(parent);
-                iterationScope.define(ast.name(), (RuntimeValue) iterationValue);
+                iterationScope.define(ast.name(), iterationRuntimeValue);
                 scope = new Scope(iterationScope);
                 for (var stmt : ast.body()) {
                     visit(stmt);
@@ -386,7 +389,7 @@ public final class Evaluator implements Ast.Visitor<RuntimeValue, EvaluateExcept
         for (int i = 0; i < parameters.size(); ++i) {
             var parameter = parameters.get(i);
             for (int j = 0; j < i; ++j) {
-                if (parameters.get(j) == parameter) {
+                if (parameters.get(j).equals(parameter)) {
                     throw new EvaluateException("Duplicate parameter '" + parameter + "'", Optional.of(ast));
                 }
             }
