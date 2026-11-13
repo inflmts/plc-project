@@ -432,7 +432,7 @@ final class AnalyzerTests {
         return Stream.of(
             Arguments.of("Function",
                 new Ast.Expr.Function("function", List.of()),
-                Type.NIL
+                Type.DYNAMIC
             ),
             Arguments.of("Argument",
                 new Ast.Expr.Function("function_any", List.of(new Ast.Expr.Literal("argument"))),
