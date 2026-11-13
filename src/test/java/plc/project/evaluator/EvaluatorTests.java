@@ -568,7 +568,7 @@ final class EvaluatorTests {
                     new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal(new BigInteger("1")))),
                     new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal(new BigDecimal("2.0"))))
                 ),
-                new EvaluateException("", Optional.of(new Ast.Expr.Literal(new BigDecimal("2.0")))),
+                new EvaluateException("", Optional.of(new Ast.Expr.Function("log", List.of(new Ast.Expr.Literal(new BigDecimal("2.0")))))),
                 List.of(
                     new RuntimeValue.Primitive(new BigInteger("1")),
                     new RuntimeValue.Primitive(new BigDecimal("2.0"))
